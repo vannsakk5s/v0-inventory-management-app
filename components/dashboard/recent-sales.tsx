@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, Sale } from "@/lib/api";
 
 interface RecentSalesProps {
-  sales: Sale[];
+  sales: any[];
+  isLoading?: boolean;
 }
 
-export function RecentSales({ sales }: RecentSalesProps) {
+export function RecentSales({ sales, isLoading }: RecentSalesProps) {
   return (
     <Card className="rounded-2xl">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -26,7 +27,15 @@ export function RecentSales({ sales }: RecentSalesProps) {
         </Link>
       </CardHeader>
       <CardContent>
-        {sales.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {sales && sales.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="rounded-full bg-muted p-3">
               <ShoppingCart className="h-6 w-6 text-muted-foreground" />
@@ -66,6 +75,8 @@ export function RecentSales({ sales }: RecentSalesProps) {
               );
             })}
           </div>
+        )}
+          </>
         )}
       </CardContent>
     </Card>

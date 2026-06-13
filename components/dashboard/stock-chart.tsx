@@ -14,9 +14,10 @@ import {
 
 interface StockChartProps {
   stockData: { date: string; type: string; quantity: number }[];
+  isLoading?: boolean;
 }
 
-export function StockChart({ stockData }: StockChartProps) {
+export function StockChart({ stockData, isLoading }: StockChartProps) {
   // Transform data - group by date and separate in/out
   const groupedData: Record<string, { date: string; stockIn: number; stockOut: number }> = {};
   
@@ -51,8 +52,11 @@ export function StockChart({ stockData }: StockChartProps) {
         <p className="text-sm text-muted-foreground">Last 7 days</p>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+        {isLoading ? (
+          <div className="h-[300px] animate-pulse rounded-lg bg-muted" />
+        ) : (
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
               <XAxis
@@ -82,7 +86,8 @@ export function StockChart({ stockData }: StockChartProps) {
               <Bar dataKey="stockOut" name="Stock Out" fill="oklch(0.75 0.15 85)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

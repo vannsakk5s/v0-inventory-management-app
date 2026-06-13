@@ -14,9 +14,10 @@ import {
 
 interface SalesChartProps {
   salesData: { date: string; revenue: number }[];
+  isLoading?: boolean;
 }
 
-export function SalesChart({ salesData }: SalesChartProps) {
+export function SalesChart({ salesData, isLoading }: SalesChartProps) {
   // Transform data for chart
   const chartData = salesData.map((item) => ({
     date: new Date(item.date).toLocaleDateString("en-US", { weekday: "short" }),
@@ -40,8 +41,11 @@ export function SalesChart({ salesData }: SalesChartProps) {
         <p className="text-sm text-muted-foreground">Last 7 days</p>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+        {isLoading ? (
+          <div className="h-[300px] animate-pulse rounded-lg bg-muted" />
+        ) : (
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -84,7 +88,8 @@ export function SalesChart({ salesData }: SalesChartProps) {
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
