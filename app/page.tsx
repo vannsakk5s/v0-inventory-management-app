@@ -8,83 +8,51 @@ import { SalesChart } from "@/components/dashboard/sales-chart";
 import { StockChart } from "@/components/dashboard/stock-chart";
 import { RecentSales } from "@/components/dashboard/recent-sales";
 import { LowStockAlert } from "@/components/dashboard/low-stock-alert";
-import { useProducts, useSales, useStockMovements, formatCurrency, getCurrentStock, isLowStock } from "@/lib/api";
+import { useDashboard, formatCurrency } from "@/lib/api";
 
 export default function DashboardPage() {
-  const { products, isLoading: productsLoading } = useProducts();
-  const { sales, isLoading: salesLoading } = useSales(7);
-  const { movements, isLoading: movementsLoading } = useStockMovements(7);
+  const { data, isLoading, isError } = useDashboard();
 
-  const isLoading = productsLoading || salesLoading || movementsLoading;
-
-  // Calculate metrics
   const metrics = useMemo(() => {
-    const totalProducts = products.length;
-    const lowStockProducts = products.filter(isLowStock);
-    const totalStock = products.reduce((sum, p) => sum + getCurrentStock(p), 0);
-    const todayRevenue = sales
-      .filter((s) => {
-        const saleDate = new Date(s.created_at);
-        const today = new Date();
-        return saleDate.toDateString() === today.toDateString();
-      })
-      .reduce((sum, s) => sum + parseFloat(s.total?.toString() || "0"), 0);
-    const totalRevenue = sales.reduce((sum, s) => sum + parseFloat(s.total?.toString() || "0"), 0);
+    if (!data) {
+      return {
+        totalProducts: 0,
+        lowStockCount: 0,
+        lowStockProducts: [],
+        totalStock: 0,
+        todayRevenue: 0,
+        totalRevenue: 0,
+      };
+    }
 
     return {
-      totalProducts,
-      lowStockCount: lowStockProducts.length,
-      lowStockProducts,
-      totalStock,
-      todayRevenue,
-      totalRevenue,
+      totalProducts: data.summary.total_products,
+      lowStockCount: data.summary.low_stock_count,
+      lowStockProducts: data.low_stock_products || [],
+      totalStock: data.summary.stock_in - data.summary.stock_out,
+      todayRevenue: data.summary.today_revenue,
+      totalRevenue: data.summary.total_revenue,
     };
-  }, [products, sales]);
+  }, [data]);
 
   // Generate chart data for sales
   const salesChartData = useMemo(() => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      date.setHours(0, 0, 0, 0);
-      return date;
-    });
-
-    return last7Days.map((date) => {
-      const dayStart = new Date(date);
-      const dayEnd = new Date(date);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-
-      const daySales = sales.filter((sale) => {
-        const saleDate = new Date(sale.created_at);
-        return saleDate >= dayStart && saleDate < dayEnd;
-      });
-
-      const revenue = daySales.reduce((sum, sale) => sum + parseFloat(sale.total?.toString() || "0"), 0);
-
-      return {
-        date: date.toISOString().split("T")[0],
-        revenue,
-      };
-    });
-  }, [sales]);
+    if (!data?.sales_data) return [];
+    return data.sales_data.map((item: any) => ({
+      date: new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      revenue: parseFloat(item.revenue) || 0,
+    }));
+  }, [data?.sales_data]);
 
   // Generate chart data for stock movements
   const stockChartData = useMemo(() => {
-    return movements.map((m) => ({
-      date: m.created_at,
-      type: m.type,
-      quantity: m.quantity,
+    if (!data?.stock_data) return [];
+    return data.stock_data.map((item: any) => ({
+      date: new Date(item.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      type: item.type,
+      quantity: item.quantity,
     }));
-  }, [movements]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Spinner className="h-8 w-8" />
-      </div>
-    );
-  }
+  }, [data?.stock_data]);
 
   return (
     <div className="space-y-6">
@@ -102,8 +70,16 @@ export default function DashboardPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{metrics.totalProducts}</div>
-            <p className="text-xs text-muted-foreground">{metrics.totalStock} units in stock</p>
+            {isLoading ? (
+              <div className="flex gap-2">
+                <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{metrics.totalProducts}</div>
+                <p className="text-xs text-muted-foreground">{metrics.totalStock} units in stock</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -113,10 +89,18 @@ export default function DashboardPage() {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${metrics.lowStockCount > 0 ? "text-destructive" : "text-foreground"}`}>
-              {metrics.lowStockCount}
-            </div>
-            <p className="text-xs text-muted-foreground">Products need restocking</p>
+            {isLoading ? (
+              <div className="flex gap-2">
+                <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+              </div>
+            ) : (
+              <>
+                <div className={`text-2xl font-bold ${metrics.lowStockCount > 0 ? "text-destructive" : "text-foreground"}`}>
+                  {metrics.lowStockCount}
+                </div>
+                <p className="text-xs text-muted-foreground">Products need restocking</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -126,8 +110,16 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(metrics.todayRevenue)}</div>
-            <p className="text-xs text-muted-foreground">From sales today</p>
+            {isLoading ? (
+              <div className="flex gap-2">
+                <div className="h-8 w-16 animate-pulse rounded-lg bg-muted" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{formatCurrency(metrics.todayRevenue)}</div>
+                <p className="text-xs text-muted-foreground">From sales today</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -137,22 +129,30 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">Last 7 days</p>
+            {isLoading ? (
+              <div className="flex gap-2">
+                <div className="h-8 w-16 animate-pulse rounded-lg bg-muted" />
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground">Last 7 days</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <SalesChart salesData={salesChartData} />
-        <StockChart stockData={stockChartData} />
+        <SalesChart salesData={salesChartData} isLoading={isLoading} />
+        <StockChart stockData={stockChartData} isLoading={isLoading} />
       </div>
 
       {/* Recent Activity */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <RecentSales sales={sales} />
-        <LowStockAlert products={metrics.lowStockProducts} />
+        <RecentSales sales={data?.recent_sales || []} isLoading={isLoading} />
+        <LowStockAlert products={metrics.lowStockProducts} isLoading={isLoading} />
       </div>
     </div>
   );

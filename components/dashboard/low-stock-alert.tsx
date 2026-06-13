@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Product, getCurrentStock } from "@/lib/api";
 
 interface LowStockAlertProps {
-  products: Product[];
+  products: any[];
+  isLoading?: boolean;
 }
 
-export function LowStockAlert({ products }: LowStockAlertProps) {
+export function LowStockAlert({ products, isLoading }: LowStockAlertProps) {
   return (
     <Card className="rounded-2xl">
       <CardHeader className="flex flex-row items-center justify-between">
@@ -29,7 +30,13 @@ export function LowStockAlert({ products }: LowStockAlertProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {products.length === 0 ? (
+          {isLoading ? (
+            <>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />
+              ))}
+            </>
+          ) : products && products.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="rounded-full bg-success/10 p-3">
                 <Package className="h-6 w-6 text-success" />
